@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "*.mk": "makefile",
+        "map": "cpp"
+    }
+}
