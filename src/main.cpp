@@ -45,8 +45,9 @@ void getNTPTime(void *param) {
 		Serial.println("Time Updated!");
 		WiFi.disconnect();						             //断开WiFi
 		WiFi.getSleep();						             //WiFi睡眠
-		vTaskDelay(pdMS_TO_TICKS(43200000));	             //一天后更新
-		vTaskDelay(pdMS_TO_TICKS(43200000));
+		for(int i = 0; i < 1440; i++) {
+			vTaskDelay(pdMS_TO_TICKS(60000));
+		}
 	}
 }
 
