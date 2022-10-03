@@ -10,6 +10,8 @@
 #include "IV18.h"
 #include "WiFi.h"
 
+#define MAXPAGE 2
+
 IV18 iv18;
 ThreeWire i2cWire(19, 21, 15);
 RtcDS1302<ThreeWire> rtc(i2cWire);
@@ -17,7 +19,10 @@ WiFiUDP udp;
 NTPClient ntp(udp);
 RtcDateTime timeNow;
 
-hw_timer_t *timer = NULL;
+hw_timer_t *updtByRTCTimer = NULL;
+hw_timer_t *second = NULL;
+
+int dispPage = 0;
 
 void displayLoop(void *param) {
 	iv18.loopStart();
@@ -28,23 +33,28 @@ void getNTPTime(void *param) {
 		WiFi.begin("2906 Wireless Network", "25617192");
 		while(WiFi.status() != WL_CONNECTED) {
 			vTaskDelay(pdMS_TO_TICKS(1000));
-		}	//连接WiFi
+		}													 //连接WiFi
 		Serial.println("WiFi Connected!");
 		ntp.begin();
-		ntp.update();	//获取更新的时间
+		ntp.update();	                                     //获取更新的时间
 		RtcDateTime rtcNtp(ntp.getEpochTime() - 946656000);  //时间戳转换成自2000以后的时间
 		rtc.SetDateTime(rtcNtp);
 		Serial.println("Time Updated!");
-		WiFi.disconnect();
-		WiFi.getSleep();
-		vTaskDelay(pdMS_TO_TICKS(86400000));	//一天后更新
+		WiFi.disconnect();						             //断开WiFi
+		WiFi.getSleep();						             //WiFi睡眠
+		vTaskDelay(pdMS_TO_TICKS(86400000));	             //一天后更新
 	}
 }
 
 String formatTime(RtcDateTime timeNow) {
+/**************Just Format Time**************/
 	String time;
 	if(timeNow.Hour() < 10) {
-		time = time + "0" + timeNow.Hour();
+		if(timeNow.Hour() == 0) {
+			time = "12";
+		}else {
+			time = time + "0" + timeNow.Hour();
+		}
 	}else {
 		time = time + timeNow.Hour();
 	}
@@ -71,6 +81,35 @@ String formatTime(RtcDateTime timeNow) {
 	return time;
 }
 
+void dispManage() {
+	switch(dispPage) {
+		case 0:
+			iv18.setNowDisplaying(formatTime(timeNow));			//显示当前时间
+			break;
+		case 1:
+			if(WiFi.status() != WL_CONNECTED) {					//查询WiFi状态
+				iv18.setNowDisplaying("NET  OFF");
+			}else {
+				iv18.setNowDisplaying("NET   ON");
+			}
+	}
+}
+
+void IRAM_ATTR changePage() {
+	if(dispPage < MAXPAGE - 1) {
+		dispPage++; 
+		dispManage();
+	}else {
+		dispPage = 0;
+		dispManage();
+	}
+}
+
+void IRAM_ATTR ticktock() {
+	dispManage();
+	timeNow += 1; //time续一秒
+}
+
 void IRAM_ATTR getRTCTime() {
 	timeNow = rtc.GetDateTime();
 	Serial.println("Time Updated By RTC");
@@ -79,19 +118,24 @@ void IRAM_ATTR getRTCTime() {
 void setup() {
 	Serial.begin(9600);
 	iv18.setNowDisplaying("        "); 
-	timeNow = rtc.GetDateTime();
+	timeNow = rtc.GetDateTime();								     //初始化时间
 
-	timer = timerBegin(0, 80, true);                    //定时器初始化--80Mhz分频80，则时间单位为1Mhz即1us即10-6s
-  	timerAttachInterrupt(timer, &getRTCTime, true); 	//中断绑定定时器
-  	timerAlarmWrite(timer, 1800000000, true);           //每30分钟用RTC时间更新一次
-  	timerAlarmEnable(timer);    
+	updtByRTCTimer = timerBegin(0, 80, true);                        //定时器初始化--80Mhz分频80，则时间单位为1Mhz即1us即10-6s
+  	timerAttachInterrupt(updtByRTCTimer, &getRTCTime, true); 	     //中断绑定定时器
+  	timerAlarmWrite(updtByRTCTimer, 1800000000, true);               //每30分钟用RTC时间更新一次
+	timerAlarmEnable(updtByRTCTimer);							     //使能
 
-	xTaskCreate(displayLoop, "dispLoop", 1024 * 1, NULL, 32, NULL);
-	xTaskCreate(getNTPTime , "Regulate", 1024 * 4, NULL, 31, NULL);
+	second = timerBegin(1, 80, true);							     //定时器初始化--80Mhz分频80，则时间单位为1Mhz即1us即10-6
+	timerAttachInterrupt(second, &ticktock, true);				     //中断绑定定时器
+	timerAlarmWrite(second, 1000000, true);						     //每1秒钟刷新显示时间
+	timerAlarmEnable(second);							 		     //使能
+
+	touchAttachInterrupt(T0, changePage, 30);						 //触摸按键绑定切换菜单
+
+	xTaskCreate(displayLoop, "dispLoop", 1024 * 1, NULL, 32, NULL);	 //显示进程
+	xTaskCreate(getNTPTime , "Regulate", 1024 * 4, NULL, 31, NULL);	 //在线同步时间进程
 }
 
-void loop() {      
-	iv18.setNowDisplaying(formatTime(timeNow));
-	vTaskDelay(pdMS_TO_TICKS(1000));
-	timeNow += 1; //time续一秒
+void loop() {
+	vTaskDelay(pdMS_TO_TICKS(1000000000));
 }
