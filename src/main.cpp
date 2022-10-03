@@ -11,6 +11,7 @@
 #include "WiFi.h"
 
 #define MAXPAGE 2
+#define TRIGVALUE 30
 
 IV18 iv18;
 ThreeWire i2cWire(19, 21, 15);
@@ -23,6 +24,7 @@ hw_timer_t *updtByRTCTimer = NULL;
 hw_timer_t *second = NULL;
 
 int dispPage = 0;
+bool trigged = false;
 
 void displayLoop(void *param) {
 	iv18.loopStart();
@@ -43,6 +45,18 @@ void getNTPTime(void *param) {
 		WiFi.disconnect();						             //断开WiFi
 		WiFi.getSleep();						             //WiFi睡眠
 		vTaskDelay(pdMS_TO_TICKS(86400000));	             //一天后更新
+	}
+}
+
+void resetter(void *param) {
+	while(1) {
+		if(touchRead(T0) > TRIGVALUE) {
+			vTaskDelay(pdMS_TO_TICKS(100));
+			trigged = false;
+			vTaskDelete(NULL);
+		}else {
+			vTaskDelay(pdMS_TO_TICKS(100));
+		}
 	}
 }
 
@@ -96,13 +110,17 @@ void dispManage() {
 }
 
 void IRAM_ATTR changePage() {
-	if(dispPage < MAXPAGE - 1) {
-		dispPage++; 
-		dispManage();
-	}else {
-		dispPage = 0;
-		dispManage();
+	if(trigged == false) {
+		xTaskCreate(resetter, "Resetter", 512, NULL, 31, NULL); //Resetter
+		if(dispPage < MAXPAGE - 1) {
+			dispPage++; 
+			dispManage();
+		}else {
+			dispPage = 0;
+			dispManage();
+		}
 	}
+	trigged = true;
 }
 
 void IRAM_ATTR ticktock() {
@@ -130,7 +148,7 @@ void setup() {
 	timerAlarmWrite(second, 1000000, true);						     //每1秒钟刷新显示时间
 	timerAlarmEnable(second);							 		     //使能
 
-	touchAttachInterrupt(T0, changePage, 30);						 //触摸按键绑定切换菜单
+	touchAttachInterrupt(T0, changePage, TRIGVALUE);				 //触摸按键绑定切换菜单
 
 	xTaskCreate(displayLoop, "dispLoop", 1024 * 1, NULL, 32, NULL);	 //显示进程
 	xTaskCreate(getNTPTime , "Regulate", 1024 * 4, NULL, 31, NULL);	 //在线同步时间进程
