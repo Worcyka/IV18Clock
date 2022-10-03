@@ -41,10 +41,12 @@ void getNTPTime(void *param) {
 		ntp.update();	                                     //获取更新的时间
 		RtcDateTime rtcNtp(ntp.getEpochTime() - 946656000);  //时间戳转换成自2000以后的时间
 		rtc.SetDateTime(rtcNtp);
+		timeNow = rtc.GetDateTime();
 		Serial.println("Time Updated!");
 		WiFi.disconnect();						             //断开WiFi
 		WiFi.getSleep();						             //WiFi睡眠
-		vTaskDelay(pdMS_TO_TICKS(86400000));	             //一天后更新
+		vTaskDelay(pdMS_TO_TICKS(43200000));	             //一天后更新
+		vTaskDelay(pdMS_TO_TICKS(43200000));
 	}
 }
 
@@ -140,7 +142,7 @@ void setup() {
 
 	updtByRTCTimer = timerBegin(0, 80, true);                        //定时器初始化--80Mhz分频80，则时间单位为1Mhz即1us即10-6s
   	timerAttachInterrupt(updtByRTCTimer, &getRTCTime, true); 	     //中断绑定定时器
-  	timerAlarmWrite(updtByRTCTimer, 1800000000, true);               //每30分钟用RTC时间更新一次
+  	timerAlarmWrite(updtByRTCTimer, 900000000, true);                //每15分钟用RTC时间更新一次
 	timerAlarmEnable(updtByRTCTimer);							     //使能
 
 	second = timerBegin(1, 80, true);							     //定时器初始化--80Mhz分频80，则时间单位为1Mhz即1us即10-6
