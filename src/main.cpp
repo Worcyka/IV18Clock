@@ -10,8 +10,8 @@
 #include "IV18.h"
 #include "WiFi.h"
 
-#define MAXPAGE 2
-#define TRIGVALUE 30
+#define MAXPAGE 2		//最多允许多少页，请务必正确配置！
+#define TRIGVALUE 30	//触摸感应开关的触发阈值
 
 IV18 iv18;
 ThreeWire i2cWire(19, 21, 15);
