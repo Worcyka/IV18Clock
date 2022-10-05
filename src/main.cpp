@@ -174,8 +174,10 @@ void setup() {
 
 	DynamicJsonDocument doc(256);
 	deserializeJson(doc, wifiJsonRead);
-	wifi.addAP(doc["SSID"][0], doc["PASSWORD"][0]);
-
+	for(int i = 0; i < doc["SSID"].size(); ++i) {
+		wifi.addAP(doc["SSID"][i], doc["PASSWORD"][i]);
+	}
+	
 	xTaskCreate(displayLoop, "dispLoop", 1024 * 1, NULL, 32, NULL);	 //显示进程
 	xTaskCreate(getNTPTime , "Regulate", 1024 * 4, NULL, 31, NULL);	 //在线同步时间进程
 }
