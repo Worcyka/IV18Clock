@@ -6,15 +6,15 @@
 #include "freertos/task.h"
 #include "WiFiClientSecure.h"
 #include "DispManager.h"
+#include "WiFiMulti.h"
 #include "esp_timer.h"
 #include "NTPClient.h"
 #include "WiFiUdp.h"
 #include "SPIFFS.h"
 #include "IV18.h"
-#include "WiFi.h"
 
 #define MAXPAGE 2		//最多允许多少页，请务必正确配置！
-#define TRIGVALUE 30	//触摸感应开关的触发阈值
+#define TRIGVALUE 20	//触摸感应开关的触发阈值
 
 static String fileName = "/config/wificonfig.json";
 
@@ -24,6 +24,7 @@ RtcDS1302<ThreeWire> rtc(i2cWire);
 WiFiUDP udp;
 NTPClient ntp(udp);
 RtcDateTime timeNow;
+WiFiMulti wifi;
 
 hw_timer_t *updtByRTCTimer = NULL;
 hw_timer_t *second = NULL;
@@ -37,8 +38,7 @@ void displayLoop(void *param) {
 
 void getNTPTime(void *param) {
 	while(true) {
-		WiFi.begin("2906 Wireless Network", "25617192");
-		while(WiFi.status() != WL_CONNECTED) {
+		while(wifi.run() != WL_CONNECTED) {
 			vTaskDelay(pdMS_TO_TICKS(1000));
 		}													 //连接WiFi
 		Serial.println("WiFi Connected!");
@@ -48,7 +48,7 @@ void getNTPTime(void *param) {
 		rtc.SetDateTime(rtcNtp);
 		timeNow = rtc.GetDateTime();
 		Serial.println("Time Updated!");
-		WiFi.disconnect();						             //断开WiFi
+		WiFi.disconnect();				            		 //断开WiFi
 		WiFi.getSleep();						             //WiFi睡眠
 		for(int i = 0; i < 1440; i++) {
 			vTaskDelay(pdMS_TO_TICKS(60000));
@@ -59,7 +59,7 @@ void getNTPTime(void *param) {
 void resetter(void *param) {
 	while(1) {
 		if(touchRead(T0) > TRIGVALUE) {
-			vTaskDelay(pdMS_TO_TICKS(100));
+			vTaskDelay(pdMS_TO_TICKS(150));
 			trigged = false;
 			vTaskDelete(NULL);
 		}else {
@@ -119,7 +119,7 @@ void dispManage() {
 
 void IRAM_ATTR changePage() {
 	if(trigged == false) {
-		xTaskCreate(resetter, "Resetter", 512, NULL, 31, NULL); //Resetter
+		xTaskCreate(resetter, "Resetter", 1024, NULL, 31, NULL); //Resetter
 		if(dispPage < MAXPAGE - 1) {
 			dispPage++; 
 			dispManage();
@@ -171,6 +171,10 @@ void setup() {
 	Serial.println(wifiJsonRead);
   	dataFileRead.close();    										 //完成文件读取后关闭文件
 	SPIFFS.end();													 //关闭SPIFFS
+
+	DynamicJsonDocument doc(256);
+	deserializeJson(doc, wifiJsonRead);
+	wifi.addAP(doc["SSID"][0], doc["PASSWORD"][0]);
 
 	xTaskCreate(displayLoop, "dispLoop", 1024 * 1, NULL, 32, NULL);	 //显示进程
 	xTaskCreate(getNTPTime , "Regulate", 1024 * 4, NULL, 31, NULL);	 //在线同步时间进程
