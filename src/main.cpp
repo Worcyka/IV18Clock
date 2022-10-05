@@ -119,7 +119,7 @@ void dispManage() {
 
 void IRAM_ATTR changePage() {
 	if(trigged == false) {
-		xTaskCreate(resetter, "Resetter", 1024, NULL, 31, NULL); //Resetter
+		xTaskCreate(resetter, "Resetter", 1024, NULL, 31, NULL); //Resetter,Lower than 1024 may cause some problem
 		if(dispPage < MAXPAGE - 1) {
 			dispPage++; 
 			dispManage();
