@@ -2,16 +2,21 @@
 #include "ThreeWire.h"
 #include "RtcDS1302.h"
 #include "RtcDateTime.h"
+#include "ArduinoJson.h"
 #include "freertos/task.h"
+#include "WiFiClientSecure.h"
 #include "DispManager.h"
 #include "esp_timer.h"
 #include "NTPClient.h"
 #include "WiFiUdp.h"
+#include "SPIFFS.h"
 #include "IV18.h"
 #include "WiFi.h"
 
 #define MAXPAGE 2		//最多允许多少页，请务必正确配置！
 #define TRIGVALUE 30	//触摸感应开关的触发阈值
+
+static String fileName = "/config/wificonfig.json";
 
 IV18 iv18;
 ThreeWire i2cWire(19, 21, 15);
@@ -23,8 +28,8 @@ RtcDateTime timeNow;
 hw_timer_t *updtByRTCTimer = NULL;
 hw_timer_t *second = NULL;
 
-int dispPage = 0;
 bool trigged = false;
+int dispPage = 0;
 
 void displayLoop(void *param) {
 	iv18.loopStart();
@@ -153,10 +158,18 @@ void setup() {
 
 	touchAttachInterrupt(T0, changePage, TRIGVALUE);				 //触摸按键绑定切换菜单
 
+  	File dataFileRead = SPIFFS.open(fileName, "r"); 				 //建立File对象用于从SPIFFS中读取文件
+	String wifiJsonRead;
+  	for(int i=0; i<dataFileRead.size(); i++){
+		wifiJsonRead = wifiJsonRead + (char)dataFileRead.read();     //读取文件内容
+  	}
+	Serial.println(wifiJsonRead);
+  	dataFileRead.close();    										 //完成文件读取后关闭文件
+
 	xTaskCreate(displayLoop, "dispLoop", 1024 * 1, NULL, 32, NULL);	 //显示进程
 	xTaskCreate(getNTPTime , "Regulate", 1024 * 4, NULL, 31, NULL);	 //在线同步时间进程
 }
 
-void loop() {
+void loop() {                       
 	vTaskDelay(pdMS_TO_TICKS(1000000000));
 }
