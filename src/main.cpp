@@ -158,6 +158,11 @@ void setup() {
 
 	touchAttachInterrupt(T0, changePage, TRIGVALUE);				 //触摸按键绑定切换菜单
 
+	if(SPIFFS.begin()){												 //启用SPIFFS
+		Serial.println("SPIFFS Started!");
+	}else {
+		Serial.println("SPIFFS Failed to Start!");
+	}
   	File dataFileRead = SPIFFS.open(fileName, "r"); 				 //建立File对象用于从SPIFFS中读取文件
 	String wifiJsonRead;
   	for(int i=0; i<dataFileRead.size(); i++){
@@ -165,6 +170,7 @@ void setup() {
   	}
 	Serial.println(wifiJsonRead);
   	dataFileRead.close();    										 //完成文件读取后关闭文件
+	SPIFFS.end();													 //关闭SPIFFS
 
 	xTaskCreate(displayLoop, "dispLoop", 1024 * 1, NULL, 32, NULL);	 //显示进程
 	xTaskCreate(getNTPTime , "Regulate", 1024 * 4, NULL, 31, NULL);	 //在线同步时间进程
