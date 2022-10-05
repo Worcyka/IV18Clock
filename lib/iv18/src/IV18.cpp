@@ -37,6 +37,9 @@ IV18::IV18() {
 	SPI.setBitOrder(LSBFIRST);
 }
 
+/**
+ * Start a loop to refresh the IV18.
+ */
 void IV18::loopStart() {
 	SPI.begin();
 	int size = nowDisplaying.length();
@@ -55,6 +58,10 @@ void IV18::loopStart() {
     }
 }
 
+/**
+ * Set display content.
+ * @param string What you want the IV18 Display.
+ */
 void IV18::setNowDisplaying(String str) {
 	nowDisplaying = str;
 } 

@@ -5,7 +5,6 @@
 #include "ArduinoJson.h"
 #include "freertos/task.h"
 #include "WiFiClientSecure.h"
-#include "DispManager.h"
 #include "WiFiMulti.h"
 #include "esp_timer.h"
 #include "NTPClient.h"
@@ -173,11 +172,11 @@ void setup() {
 	SPIFFS.end();													 //关闭SPIFFS
 
 	DynamicJsonDocument doc(256);
-	deserializeJson(doc, wifiJsonRead);
+	deserializeJson(doc, wifiJsonRead);								 //解析Json并依此添加AP
 	for(int i = 0; i < doc["SSID"].size(); ++i) {
 		wifi.addAP(doc["SSID"][i], doc["PASSWORD"][i]);
 	}
-	
+
 	xTaskCreate(displayLoop, "dispLoop", 1024 * 1, NULL, 32, NULL);	 //显示进程
 	xTaskCreate(getNTPTime , "Regulate", 1024 * 4, NULL, 31, NULL);	 //在线同步时间进程
 }
