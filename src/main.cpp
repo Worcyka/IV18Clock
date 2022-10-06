@@ -93,6 +93,7 @@ void dataRead(const String &data) {
 			wifiJsonRead = wifiJsonRead + (char)dataFileRead.read();     //读取文件内容
   		}
 		Serial.println(wifiJsonRead);
+		Blinker.print(wifiJsonRead);
   		dataFileRead.close();    										 //完成文件读取后关闭文件
 		return;
 	}
@@ -109,7 +110,6 @@ void dataRead(const String &data) {
   		for(int i=0; i<dataFileRead.size(); i++){
 			wifiJsonRead = wifiJsonRead + (char)dataFileRead.read();     //读取文件内容
   		}
-		Serial.println(wifiJsonRead);
   		dataFileRead.close();    										 //完成文件读取后关闭文件
 
 		DynamicJsonDocument doc(256);
@@ -138,7 +138,6 @@ void dataRead(const String &data) {
 			wifiJsonRead = wifiJsonRead + (char)dataFileRead.read();     //读取文件内容
   		}
   		dataFileRead.close();    										 //完成文件读取后关闭文件
-		Blinker.print(wifiJsonRead);
 
 		DynamicJsonDocument doc(256);
 		deserializeJson(doc, wifiJsonRead);								 //解析Json
