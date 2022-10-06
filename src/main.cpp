@@ -19,7 +19,7 @@
 #define BLINKER_PRINT Serial
 #define EMPTYMODE 0
 #define SSID_SETTING 1
-#define PASSWORD_SETTING 1
+#define PASSWORD_SETTING 2
 
 static String fileName = "/config/wificonfig.json";
 
@@ -75,15 +75,31 @@ void resetter(void *param) {
 		}
 	}
 }
+
 /************检测指令并依此配置WiFi*************/
 void dataRead(const String &data) {
 	if(data == "reset config") {
 		SPIFFS.format();
 		text.print("All Config Resetted!", "");
+		return;
+	}
+	if(data == "show config") {
+		if(!SPIFFS.begin()){											 //启用SPIFFS
+			text.print("SPIFFS Failed to Start!");
+		}
+  		File dataFileRead = SPIFFS.open(fileName, "r"); 				 //建立File对象用于从SPIFFS中读取文件
+		String wifiJsonRead;
+  		for(int i=0; i<dataFileRead.size(); i++){
+			wifiJsonRead = wifiJsonRead + (char)dataFileRead.read();     //读取文件内容
+  		}
+		Serial.println(wifiJsonRead);
+  		dataFileRead.close();    										 //完成文件读取后关闭文件
+		return;
 	}
 	if(data == "set wifi") {
 		text.print("Setting WiFi :", "Please Enter SSID");
 		mode = SSID_SETTING;
+		return;
 	}else if(mode == SSID_SETTING) {
 		if(!SPIFFS.begin()){											 //启用SPIFFS
 			text.print("SPIFFS Failed to Start!");
@@ -93,8 +109,8 @@ void dataRead(const String &data) {
   		for(int i=0; i<dataFileRead.size(); i++){
 			wifiJsonRead = wifiJsonRead + (char)dataFileRead.read();     //读取文件内容
   		}
+		Serial.println(wifiJsonRead);
   		dataFileRead.close();    										 //完成文件读取后关闭文件
-		SPIFFS.end();
 
 		DynamicJsonDocument doc(256);
 		deserializeJson(doc, wifiJsonRead);								 //解析Json
@@ -110,6 +126,7 @@ void dataRead(const String &data) {
 
 		text.print("Setting WiFi :", "Please Enter Password");
 		mode = PASSWORD_SETTING;
+		return;
 	}else if(mode == PASSWORD_SETTING) {
 		if(!SPIFFS.begin()){											 //启用SPIFFS
 			text.print("SPIFFS Failed to Start!");
@@ -121,11 +138,11 @@ void dataRead(const String &data) {
 			wifiJsonRead = wifiJsonRead + (char)dataFileRead.read();     //读取文件内容
   		}
   		dataFileRead.close();    										 //完成文件读取后关闭文件
-		SPIFFS.end();
+		Blinker.print(wifiJsonRead);
 
 		DynamicJsonDocument doc(256);
 		deserializeJson(doc, wifiJsonRead);								 //解析Json
-		int size = doc["SSID"].size();
+		int size = doc["PASSWORD"].size();
 		doc["PASSWORD"][size] = data;
 
 		String buffer;
@@ -138,6 +155,7 @@ void dataRead(const String &data) {
 		mode = PASSWORD_SETTING;
 		text.print("Setting WiFi :", "Finished!");
 		mode = EMPTYMODE;
+		return;
 	}
 }
 
