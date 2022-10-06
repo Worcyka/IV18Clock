@@ -13,12 +13,17 @@
 #include "SPIFFS.h"
 #include "IV18.h"
 
-#define MAXPAGE 2		//!最多允许多少页，请务必正确配置！
+#define MAXPAGE 3		//!最多允许多少页，请务必正确配置！
 #define TRIGVALUE 20	//触摸感应开关的触发阈值
 #define BLINKER_BLE		//使用BLINKER的蓝牙模式
 #define BLINKER_PRINT Serial
+#define EMPTYMODE 0
+#define SSID_SETTING 1
+#define PASSWORD_SETTING 1
 
 static String fileName = "/config/wificonfig.json";
+
+BlinkerText text("text");
 
 IV18 iv18;
 ThreeWire i2cWire(19, 21, 15);
@@ -33,7 +38,8 @@ hw_timer_t *second = NULL;
 
 bool trigged = false;
 int dispPage = 0;
- 
+int mode = 0;
+
 void displayLoop(void *param) {
 	iv18.loopStart();
 }
@@ -67,6 +73,71 @@ void resetter(void *param) {
 		}else {
 			vTaskDelay(pdMS_TO_TICKS(100));
 		}
+	}
+}
+/************检测指令并依此配置WiFi*************/
+void dataRead(const String &data) {
+	if(data == "reset config") {
+		SPIFFS.format();
+		text.print("All Config Resetted!", "");
+	}
+	if(data == "set wifi") {
+		text.print("Setting WiFi :", "Please Enter SSID");
+		mode = SSID_SETTING;
+	}else if(mode == SSID_SETTING) {
+		if(!SPIFFS.begin()){											 //启用SPIFFS
+			text.print("SPIFFS Failed to Start!");
+		}
+  		File dataFileRead = SPIFFS.open(fileName, "r"); 				 //建立File对象用于从SPIFFS中读取文件
+		String wifiJsonRead;
+  		for(int i=0; i<dataFileRead.size(); i++){
+			wifiJsonRead = wifiJsonRead + (char)dataFileRead.read();     //读取文件内容
+  		}
+  		dataFileRead.close();    										 //完成文件读取后关闭文件
+		SPIFFS.end();
+
+		DynamicJsonDocument doc(256);
+		deserializeJson(doc, wifiJsonRead);								 //解析Json
+		int size = doc["SSID"].size();
+		doc["SSID"][size] = data;
+
+		String buffer;
+		serializeJson(doc, buffer);
+		File dataFileWrite = SPIFFS.open(fileName, "w");				 //建立File对象用于写入文件
+		dataFileWrite.print(buffer);									 //文件反写回SPIFFS
+		dataFileWrite.close();											 //完成写入后关闭文件
+		SPIFFS.end();
+
+		text.print("Setting WiFi :", "Please Enter Password");
+		mode = PASSWORD_SETTING;
+	}else if(mode == PASSWORD_SETTING) {
+		if(!SPIFFS.begin()){											 //启用SPIFFS
+			text.print("SPIFFS Failed to Start!");
+		}
+		Serial.println("SPIFFS Started!");
+  		File dataFileRead = SPIFFS.open(fileName, "r"); 				 //建立File对象用于从SPIFFS中读取文件
+		String wifiJsonRead;
+  		for(int i=0; i<dataFileRead.size(); i++){
+			wifiJsonRead = wifiJsonRead + (char)dataFileRead.read();     //读取文件内容
+  		}
+  		dataFileRead.close();    										 //完成文件读取后关闭文件
+		SPIFFS.end();
+
+		DynamicJsonDocument doc(256);
+		deserializeJson(doc, wifiJsonRead);								 //解析Json
+		int size = doc["SSID"].size();
+		doc["PASSWORD"][size] = data;
+
+		String buffer;
+		serializeJson(doc, buffer);
+		File dataFileWrite = SPIFFS.open(fileName, "w");				 //建立File对象用于写入文件
+		dataFileWrite.print(buffer);									 //文件反写回SPIFFS
+		dataFileWrite.close();											 //完成写入后关闭文件
+		SPIFFS.end();
+
+		mode = PASSWORD_SETTING;
+		text.print("Setting WiFi :", "Finished!");
+		mode = EMPTYMODE;
 	}
 }
 
@@ -116,6 +187,14 @@ void dispManage() {
 			}else {
 				iv18.setNowDisplaying("NET   ON");
 			}
+			break;
+		case 2:
+			if(Blinker.connected()) {
+				iv18.setNowDisplaying("BLE   ON");
+			}else {
+				iv18.setNowDisplaying("BLE  OFF");
+			}
+			break;
 	}
 }
 
@@ -144,7 +223,7 @@ void IRAM_ATTR getRTCTime() {
 }
 
 void setup() {
-	SPIFFS.format();
+	//SPIFFS.format();												 //如果未初始化SPIFFS，请调用一次该函数
 	Serial.begin(9600);
 	iv18.setNowDisplaying("        "); 
 	timeNow = rtc.GetDateTime();								     //初始化时间
@@ -181,10 +260,17 @@ void setup() {
 		wifi.addAP(doc["SSID"][i], doc["PASSWORD"][i]);
 	}
 
+	Blinker.begin();												 //启动蓝牙	
+	Blinker.attachData(dataRead);									 //绑定中断
 	xTaskCreate(displayLoop, "dispLoop", 1024 * 1, NULL, 32, NULL);	 //显示进程
 	xTaskCreate(getNTPTime , "Regulate", 1024 * 4, NULL, 31, NULL);	 //在线同步时间进程
 }
 
 void loop() {                       
-	vTaskDelay(pdMS_TO_TICKS(1000000000));
+	if(Blinker.connected()) {
+		Blinker.run();												 //事件处理
+		vTaskDelay(pdMS_TO_TICKS( 50));
+	}else {
+		vTaskDelay(pdMS_TO_TICKS(100));
+	}
 }

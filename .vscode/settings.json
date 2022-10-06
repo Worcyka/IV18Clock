@@ -2,6 +2,7 @@
     "files.associations": {
         "*.mk": "makefile",
         "map": "cpp",
-        "*.tcc": "cpp"
+        "*.tcc": "cpp",
+        "string": "cpp"
     }
 }
