@@ -8,12 +8,15 @@
 #include "WiFiMulti.h"
 #include "esp_timer.h"
 #include "NTPClient.h"
+#include "Blinker.h"
 #include "WiFiUdp.h"
 #include "SPIFFS.h"
 #include "IV18.h"
 
-#define MAXPAGE 2		//最多允许多少页，请务必正确配置！
+#define MAXPAGE 2		//!最多允许多少页，请务必正确配置！
 #define TRIGVALUE 20	//触摸感应开关的触发阈值
+#define BLINKER_BLE		//使用BLINKER的蓝牙模式
+#define BLINKER_PRINT Serial
 
 static String fileName = "/config/wificonfig.json";
 
@@ -30,7 +33,7 @@ hw_timer_t *second = NULL;
 
 bool trigged = false;
 int dispPage = 0;
-
+ 
 void displayLoop(void *param) {
 	iv18.loopStart();
 }
@@ -141,6 +144,7 @@ void IRAM_ATTR getRTCTime() {
 }
 
 void setup() {
+	SPIFFS.format();
 	Serial.begin(9600);
 	iv18.setNowDisplaying("        "); 
 	timeNow = rtc.GetDateTime();								     //初始化时间
