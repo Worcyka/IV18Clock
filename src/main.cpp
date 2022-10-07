@@ -20,6 +20,7 @@
 #define EMPTYMODE 0
 #define SSID_SETTING 1
 #define PASSWORD_SETTING 2
+#define CHOOSE_WIFI 3
 
 static String fileName = "/config/wificonfig.json";
 
@@ -78,12 +79,16 @@ void resetter(void *param) {
 
 /************检测指令并依此配置WiFi*************/
 void dataRead(const String &data) {
-	if(data == "reset config") {
+	if(data == "quit" && mode != EMPTYMODE) {
+		text.print("Please Enter Directive");
+		mode = EMPTYMODE;
+	}
+	if(data == "clear config" && mode == EMPTYMODE) {
 		SPIFFS.format();
-		text.print("All Config Resetted!", "");
+		text.print("All Config Reset!", "");
 		return;
 	}
-	if(data == "show config") {
+	if(data == "show config" && mode == EMPTYMODE) {
 		if(!SPIFFS.begin()){											 //启用SPIFFS
 			text.print("SPIFFS Failed to Start!");
 		}
@@ -97,7 +102,45 @@ void dataRead(const String &data) {
   		dataFileRead.close();    										 //完成文件读取后关闭文件
 		return;
 	}
-	if(data == "set wifi") {
+	if(data == "scan wifi" && mode == EMPTYMODE) {	
+		WiFi.mode(WIFI_STA);
+		int wifiNum = WiFi.scanNetworks();								 //扫描WiFI
+		Blinker.print("Find " + (String)wifiNum + " Network(s)");		
+		for(int i = 0; i < wifiNum; ++i) {
+			Blinker.print((String)i + ":  " + WiFi.SSID(i));			 //显示WiFI SSID
+			Blinker.print((WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? "Unencrypted" : "Encrypted"));
+		}
+		text.print("Please Enter WiFi Number :", "Start from 0");
+		mode = CHOOSE_WIFI;
+		return;
+	}else if(mode == CHOOSE_WIFI) {
+		if(!SPIFFS.begin()){											 //启用SPIFFS
+			text.print("SPIFFS Failed to Start!");
+		}
+  		File dataFileRead = SPIFFS.open(fileName, "r"); 				 //建立File对象用于从SPIFFS中读取文件
+		String wifiJsonRead;
+  		for(int i=0; i<dataFileRead.size(); i++){
+			wifiJsonRead = wifiJsonRead + (char)dataFileRead.read();     //读取文件内容
+  		}
+  		dataFileRead.close();    										 //完成文件读取后关闭文件
+
+		DynamicJsonDocument doc(256);
+		deserializeJson(doc, wifiJsonRead);								 //解析Json
+		int size = doc["SSID"].size();
+		doc["SSID"][size] = WiFi.SSID(data.toInt());
+
+		String buffer;
+		serializeJson(doc, buffer);
+		File dataFileWrite = SPIFFS.open(fileName, "w");				 //建立File对象用于写入文件
+		dataFileWrite.print(buffer);									 //文件反写回SPIFFS
+		dataFileWrite.close();											 //完成写入后关闭文件
+		SPIFFS.end();
+
+		text.print("Setting WiFi :", "Please Enter Password");
+		mode = PASSWORD_SETTING;
+		return;
+	}
+	if(data == "add wifi" && mode == EMPTYMODE) {
 		text.print("Setting WiFi :", "Please Enter SSID");
 		mode = SSID_SETTING;
 		return;
@@ -131,7 +174,6 @@ void dataRead(const String &data) {
 		if(!SPIFFS.begin()){											 //启用SPIFFS
 			text.print("SPIFFS Failed to Start!");
 		}
-		Serial.println("SPIFFS Started!");
   		File dataFileRead = SPIFFS.open(fileName, "r"); 				 //建立File对象用于从SPIFFS中读取文件
 		String wifiJsonRead;
   		for(int i=0; i<dataFileRead.size(); i++){
@@ -151,7 +193,8 @@ void dataRead(const String &data) {
 		dataFileWrite.close();											 //完成写入后关闭文件
 		SPIFFS.end();
 
-		mode = PASSWORD_SETTING;
+		wifi.addAP(doc["SSID"][size], doc["PASSWORD"][size]);			 //添加AP
+
 		text.print("Setting WiFi :", "Finished!");
 		mode = EMPTYMODE;
 		return;
