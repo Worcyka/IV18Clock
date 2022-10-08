@@ -331,6 +331,6 @@ void loop() {
 		Blinker.run();												 //事件处理
 		vTaskDelay(pdMS_TO_TICKS( 50));
 	}else {
-		vTaskDelay(pdMS_TO_TICKS(100));
+		vTaskDelay(pdMS_TO_TICKS(200));
 	}
 }
