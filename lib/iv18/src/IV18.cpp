@@ -40,7 +40,8 @@ IV18::IV18() {
         {"X", 0x00},    //Disabled
         {"Y", 0x76},   
         {"Z", 0x00},    //Disabled
-        {"Z", 0x01},
+        {"-", 0x02},
+        {".", 0x01},
     };
     /*Initialize SPI*/
 	SPI.begin();

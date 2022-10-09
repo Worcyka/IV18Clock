@@ -2,7 +2,6 @@
 #include "WiFi.h"
 
 Weather::Weather(uint32_t abcode) : location(abcode) {
-
 }
 
 /**

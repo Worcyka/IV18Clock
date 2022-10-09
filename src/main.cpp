@@ -261,7 +261,7 @@ void dispManage() {
 			iv18.setNowDisplaying(formatTime(timeNow));			//显示当前时间
 			break;
 		case 1:
-			if(weather.temperature() < 10 && weather.temperature() > -10) {
+			if(weather.temperature() < 10 && weather.temperature() > 0) {
 				iv18.setNowDisplaying(String("TEPR   ") + weather.temperature());	//1位数	
 			}else if(weather.temperature() < -10) {
 				iv18.setNowDisplaying(String("TEPR "  ) + weather.temperature());	//带符号，占仨位
