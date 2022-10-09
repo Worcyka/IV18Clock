@@ -1,14 +1,14 @@
 #include "Weather.h"
 #include "WiFi.h"
 
-Weather::Weather(int loc) : location(loc) {
+Weather::Weather(uint32_t abcode) : location(abcode) {
 
 }
 
 /**
  * reset location.
  */
-void Weather::city(uint8_t abcode) {
+void Weather::city(uint32_t abcode) {
     location = abcode;
 }
 

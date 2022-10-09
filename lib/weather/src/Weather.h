@@ -4,9 +4,9 @@
 
 class Weather {
 public:
-    Weather(int loc);
+    Weather(uint32_t abcode);
 
-    void city();
+    void city(uint32_t abcode);
     bool update();
     String weather();
     uint8_t temperature();
@@ -15,5 +15,5 @@ private:
     String weatherc;
     uint8_t temperaturec;
     uint8_t humidityc;
-    uint8_t location;
+    uint32_t location;
 };

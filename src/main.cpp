@@ -59,6 +59,8 @@ void getWeather(void *param) {
 	}else {
 		Serial.println("Failed!");
 	}
+	WiFi.disconnect();				            		 //断开WiFi
+	WiFi.getSleep();						             //WiFi睡眠
 	vTaskDelete(NULL);
 }
 
