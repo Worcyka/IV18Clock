@@ -10,6 +10,7 @@
 #include "NTPClient.h"
 #include "Blinker.h"
 #include "WiFiUdp.h"
+#include "Weather.h"
 #include "SPIFFS.h"
 #include "IV18.h"
 
@@ -29,6 +30,7 @@ BlinkerText text("text");
 IV18 iv18;
 ThreeWire i2cWire(19, 21, 15);
 RtcDS1302<ThreeWire> rtc(i2cWire);
+Weather weather(442000);
 WiFiUDP udp;
 NTPClient ntp(udp);
 RtcDateTime timeNow;
@@ -43,6 +45,21 @@ int mode = 0;
 
 void displayLoop(void *param) {
 	iv18.loopStart();
+}
+
+void getWeather(void *param) {
+	vTaskDelay(pdMS_TO_TICKS(10000));
+	while(wifi.run() != WL_CONNECTED) {
+		vTaskDelay(pdMS_TO_TICKS(1000));
+	}
+	if(weather.update()) {
+		Serial.println(weather.temperature());
+		Serial.println(weather.humidity());
+		Serial.println(weather.weather());
+	}else {
+		Serial.println("Failed!");
+	}
+	vTaskDelete(NULL);
 }
 
 void getNTPTime(void *param) {
@@ -250,9 +267,9 @@ void dispManage() {
 			break;
 		case 2:
 			if(Blinker.connected()) {
-				iv18.setNowDisplaying("BLE   ON");
+				iv18.setNowDisplaying("BLE  CAT");
 			}else {
-				iv18.setNowDisplaying("BLE  OFF");
+				iv18.setNowDisplaying("BLE   ON");
 			}
 			break;
 	}
@@ -324,6 +341,7 @@ void setup() {
 	Blinker.attachData(dataRead);									 //绑定中断
 	xTaskCreate(displayLoop, "dispLoop", 1024 * 1, NULL, 32, NULL);	 //显示进程
 	xTaskCreate(getNTPTime , "Regulate", 1024 * 4, NULL, 31, NULL);	 //在线同步时间进程
+	xTaskCreate(getWeather , "Weather ", 1024 * 8, NULL, 31, NULL);	 //在线同步时间进程
 }
 
 void loop() {                       

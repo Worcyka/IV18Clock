@@ -4,5 +4,6 @@
         "map": "cpp",
         "*.tcc": "cpp",
         "string": "cpp"
-    }
+    },
+    "C_Cpp.errorSquiggles": "Disabled"
 }
