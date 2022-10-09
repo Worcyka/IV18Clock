@@ -53,8 +53,12 @@ bool Weather::update() {
             }           
 
             JsonObject weatherNow = doc["lives"][0];
+            const char* weatherChar;
             temperaturec = weatherNow["temperature"];
             humidityc    = weatherNow["humidity"];
+            weatherChar  = weatherNow["weather"];
+
+            weatherc = weatherChar;
         }else {
             return 0;
         }
@@ -71,14 +75,33 @@ bool Weather::update() {
  * @return Return weather in ENG(String)
  */
 String Weather::weather() {
-    return weatherc;
+/*M,W,X,Z Disabled*/
+    if(weatherc == "晴") {
+        return "Sunny";
+    }else if(weatherc == "晴") {
+        return "PtCloudy";
+    }else if(weatherc == "少云") {
+        return "PtCloudy";
+    }else if(weatherc == "晴间多云" || weatherc == "多云") {
+        return "Cloudy";
+    }else if(weatherc == "阴") {
+        return "Overcast";
+    }else if(weatherc == "有风") {
+        return "UJindy";
+    }else if(weatherc == "平静"){
+        return "Quiet";
+    }else if(weatherc == "微风" || weatherc == "和风" || weatherc == "清风"){
+        return "Breezy";
+    }
+
+    return "Gale";
 }
 
 /**
  * Get temperature.
  * @return Return temperature (uint8_t)
  */
-uint8_t Weather::temperature() {
+int8_t Weather::temperature() {
     return temperaturec;
 }
 

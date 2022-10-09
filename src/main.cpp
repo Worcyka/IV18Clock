@@ -14,7 +14,7 @@
 #include "SPIFFS.h"
 #include "IV18.h"
 
-#define MAXPAGE 3		//!最多允许多少页，请务必正确配置！
+#define MAXPAGE 6		//!最多允许多少页，请务必正确配置!
 #define TRIGVALUE 20	//触摸感应开关的触发阈值
 #define BLINKER_BLE		//使用BLINKER的蓝牙模式
 #define BLINKER_PRINT Serial
@@ -261,13 +261,28 @@ void dispManage() {
 			iv18.setNowDisplaying(formatTime(timeNow));			//显示当前时间
 			break;
 		case 1:
-			if(WiFi.status() != WL_CONNECTED) {					//查询WiFi状态
+			if(weather.temperature() < 10 && weather.temperature() > -10) {
+				iv18.setNowDisplaying(String("TEPR   ") + weather.temperature());	//1位数	
+			}else if(weather.temperature() < -10) {
+				iv18.setNowDisplaying(String("TEPR "  ) + weather.temperature());	//带符号，占仨位
+			}else {
+				iv18.setNowDisplaying(String("TEPR  " ) + weather.temperature());	//两位(正常情况下？)
+			}
+			break;
+		case 2:
+			iv18.setNowDisplaying(String("RH    ") + weather.humidity());			//应该不太可能出现1位或者3位吧...
+			break;
+		case 3:
+			iv18.setNowDisplaying(weather.weather());								//直接显示气象
+			break;
+		case 4:
+			if(WiFi.status() != WL_CONNECTED) {										//查询WiFi状态
 				iv18.setNowDisplaying("NET  OFF");
 			}else {
 				iv18.setNowDisplaying("NET   ON");
 			}
 			break;
-		case 2:
+		case 5:
 			if(Blinker.connected()) {
 				iv18.setNowDisplaying("BLE  CAT");
 			}else {

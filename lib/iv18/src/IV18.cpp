@@ -16,8 +16,8 @@ IV18::IV18() {
         {" ", 0x00},
         {"A", 0xEE},
         {"B", 0x3E},
-        {"C", 0x1A},
-        {"D", 0x3D},
+        {"C", 0x9C},
+        {"D", 0x7A},
         {"E", 0x9E},
         {"F", 0x8E},
         {"G", 0xBC},
@@ -26,10 +26,21 @@ IV18::IV18() {
         {"J", 0x70},
         {"K", 0x00},
         {"L", 0x1C},
-        {"O", 0xFC},
-        {"T", 0x1E},
+        {"M", 0x00},    //Disabled
         {"N", 0xEC},
-        {".", 0x01},
+        {"O", 0xFC},
+        {"P", 0xCE},
+        {"Q", 0xFD},
+        {"R", 0x0A},
+        {"S", 0xB6},
+        {"T", 0x1E},
+        {"U", 0x7C},
+        {"V", 0x38},    
+        {"W", 0x1E},    //Disabled
+        {"X", 0x00},    //Disabled
+        {"Y", 0x76},   
+        {"Z", 0x00},    //Disabled
+        {"Z", 0x01},
     };
     /*Initialize SPI*/
 	SPI.begin();
@@ -43,7 +54,6 @@ IV18::IV18() {
 void IV18::loopStart() {
 	SPI.begin();
 	int size = nowDisplaying.length();
-	nowDisplaying.toUpperCase();
     while(true) {
         if(size <= 8) {
             for (int counter = 0; counter < size; counter++) {
@@ -63,5 +73,6 @@ void IV18::loopStart() {
  * @param string What you want the IV18 Display.
  */
 void IV18::setNowDisplaying(String str) {
+    str.toUpperCase();
 	nowDisplaying = str;
 } 
