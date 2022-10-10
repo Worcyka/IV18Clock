@@ -4,6 +4,7 @@
 #include "RtcDateTime.h"
 #include "ArduinoJson.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 #include "WiFiClientSecure.h"
 #include "WiFiMulti.h"
 #include "esp_timer.h"
@@ -39,6 +40,8 @@ WiFiMulti wifi;
 hw_timer_t *updtByRTCTimer = NULL;
 hw_timer_t *second = NULL;
 
+SemaphoreHandle_t wifiSemaph = xSemaphoreCreateBinary();	//用于控制WiFI的信号量
+
 bool trigged = false;
 int dispPage = 0;
 int mode = 0;
@@ -48,24 +51,30 @@ void displayLoop(void *param) {
 }
 
 void getWeather(void *param) {
-	vTaskDelay(pdMS_TO_TICKS(10000));
-	while(wifi.run() != WL_CONNECTED) {
-		vTaskDelay(pdMS_TO_TICKS(1000));
+	while(1){
+		xSemaphoreTake(wifiSemaph, portMAX_DELAY);			 //获取信号量
+		while(wifi.run() != WL_CONNECTED) {
+			vTaskDelay(pdMS_TO_TICKS(1000));
+		}
+		if(weather.update()) {
+			Serial.println(weather.temperature());
+			Serial.println(weather.humidity());
+			Serial.println(weather.weather());
+		}else {
+			Serial.println("Failed!");
+		}
+		WiFi.disconnect();				            		 //断开WiFi
+		WiFi.getSleep();						             //WiFi睡眠
+		xSemaphoreGive(wifiSemaph);							 //释放信号量
+		for(int i = 0; i < 60; ++i) {						 //小睡60分钟
+			vTaskDelay(pdMS_TO_TICKS(60000));  
+		}	
 	}
-	if(weather.update()) {
-		Serial.println(weather.temperature());
-		Serial.println(weather.humidity());
-		Serial.println(weather.weather());
-	}else {
-		Serial.println("Failed!");
-	}
-	WiFi.disconnect();				            		 //断开WiFi
-	WiFi.getSleep();						             //WiFi睡眠
-	vTaskDelete(NULL);
 }
 
 void getNTPTime(void *param) {
 	while(true) {
+		xSemaphoreTake(wifiSemaph, portMAX_DELAY);			 //获取信号量
 		while(wifi.run() != WL_CONNECTED) {
 			vTaskDelay(pdMS_TO_TICKS(1000));
 		}													 //连接WiFi
@@ -78,8 +87,9 @@ void getNTPTime(void *param) {
 		Serial.println("Time Updated!");
 		WiFi.disconnect();				            		 //断开WiFi
 		WiFi.getSleep();						             //WiFi睡眠
-		for(int i = 0; i < 1440; i++) {
-			vTaskDelay(pdMS_TO_TICKS(60000));
+		xSemaphoreGive(wifiSemaph);							 //释放信号量	
+		for(int i = 0; i < 1440; ++i) {						 //休眠一整天
+			vTaskDelay(pdMS_TO_TICKS(60000));  
 		}
 	}
 }
@@ -87,7 +97,7 @@ void getNTPTime(void *param) {
 void resetter(void *param) {
 	while(1) {
 		if(touchRead(T0) > TRIGVALUE) {
-			vTaskDelay(pdMS_TO_TICKS(150));
+			vTaskDelay(pdMS_TO_TICKS(300));
 			trigged = false;
 			vTaskDelete(NULL);
 		}else {
@@ -123,7 +133,9 @@ void dataRead(const String &data) {
 	}
 	if(data == "scan wifi" && mode == EMPTYMODE) {	
 		WiFi.mode(WIFI_STA);
+		xSemaphoreTakeFromISR(wifiSemaph, NULL);		 				 //获取信号量
 		int wifiNum = WiFi.scanNetworks();								 //扫描WiFI
+		xSemaphoreGiveFromISR(wifiSemaph, NULL);						 //释放信号量
 		Blinker.print("Find " + (String)wifiNum + " Network(s)");		
 		for(int i = 0; i < wifiNum; ++i) {
 			Blinker.print((String)i + ":  " + WiFi.SSID(i));			 //显示WiFI SSID
@@ -354,11 +366,13 @@ void setup() {
 		wifi.addAP(doc["SSID"][i], doc["PASSWORD"][i]);
 	}
 
+	xSemaphoreGive(wifiSemaph);
+
 	Blinker.begin();												 //启动蓝牙	
 	Blinker.attachData(dataRead);									 //绑定中断
 	xTaskCreate(displayLoop, "dispLoop", 1024 * 1, NULL, 32, NULL);	 //显示进程
 	xTaskCreate(getNTPTime , "Regulate", 1024 * 4, NULL, 31, NULL);	 //在线同步时间进程
-	xTaskCreate(getWeather , "Weather ", 1024 * 8, NULL, 31, NULL);	 //在线同步时间进程
+	xTaskCreate(getWeather , "Weather ", 1024 * 4, NULL, 31, NULL);	 //在线同步天气进程
 }
 
 void loop() {                       
