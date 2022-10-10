@@ -52,10 +52,9 @@ void displayLoop(void *param) {
 }
 
 void getWeather(void *param) {
-	vTaskDelay(pdMS_TO_TICKS(99999999));
 	while(true) {
-		while(wifi.run() != WL_CONNECTED &&
-			 xSemaphoreTake(wifiSemaph, portMAX_DELAY) != pdFALSE) {
+		while(xSemaphoreTake(wifiSemaph, portMAX_DELAY) != pdFALSE &&
+			 wifi.run() != WL_CONNECTED) {
 			xSemaphoreGive(wifiSemaph);
 			vTaskDelay(pdMS_TO_TICKS(1000));
 		}
@@ -77,8 +76,8 @@ void getWeather(void *param) {
 
 void getNTPTime(void *param) {
 	while(true) {
-		while(wifi.run() != WL_CONNECTED &&
-			 xSemaphoreTake(wifiSemaph, portMAX_DELAY) != pdFALSE) {
+		while(xSemaphoreTake(wifiSemaph, portMAX_DELAY) != pdFALSE &&
+			 wifi.run() != WL_CONNECTED) {
 			xSemaphoreGive(wifiSemaph);
 			vTaskDelay(pdMS_TO_TICKS(1000));
 		}													 //连接WiFi

@@ -46,7 +46,7 @@ bool Weather::update() {
             if (error) {
                 Serial.print("deserializeJson() failed: ");
                 Serial.println(error.c_str());
-            return 0;
+                return 0;
             }           
 
             JsonObject weatherNow = doc["lives"][0];
