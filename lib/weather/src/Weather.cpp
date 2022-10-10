@@ -34,7 +34,8 @@ bool Weather::update() {
 
     if (client.connect(host, 80)) {
         client.print(httpRequest);
- 
+        Serial.println("Sending request: ");
+        Serial.println(httpRequest);  
         // 获取并显示服务器响应状态行 
         String status_response = client.readStringUntil('\n');
         Serial.print("status_response: ");
