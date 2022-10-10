@@ -12,6 +12,7 @@
 #include "Blinker.h"
 #include "WiFiUdp.h"
 #include "Weather.h"
+#include "memory.h"
 #include "SPIFFS.h"
 #include "IV18.h"
 
@@ -19,7 +20,7 @@
 #define TRIGVALUE 20	//触摸感应开关的触发阈值
 #define BLINKER_BLE		//使用BLINKER的蓝牙模式
 #define BLINKER_PRINT Serial
-#define EMPTYMODE 0
+#define DEFAULTMODE 0
 #define SSID_SETTING 1
 #define PASSWORD_SETTING 2
 #define CHOOSE_WIFI 3
@@ -51,9 +52,11 @@ void displayLoop(void *param) {
 }
 
 void getWeather(void *param) {
-	while(1){
-		xSemaphoreTake(wifiSemaph, portMAX_DELAY);			 //获取信号量
-		while(wifi.run() != WL_CONNECTED) {
+	vTaskDelay(pdMS_TO_TICKS(99999999));
+	while(true) {
+		while(wifi.run() != WL_CONNECTED &&
+			 xSemaphoreTake(wifiSemaph, portMAX_DELAY) != pdFALSE) {
+			xSemaphoreGive(wifiSemaph);
 			vTaskDelay(pdMS_TO_TICKS(1000));
 		}
 		if(weather.update()) {
@@ -74,8 +77,9 @@ void getWeather(void *param) {
 
 void getNTPTime(void *param) {
 	while(true) {
-		xSemaphoreTake(wifiSemaph, portMAX_DELAY);			 //获取信号量
-		while(wifi.run() != WL_CONNECTED) {
+		while(wifi.run() != WL_CONNECTED &&
+			 xSemaphoreTake(wifiSemaph, portMAX_DELAY) != pdFALSE) {
+			xSemaphoreGive(wifiSemaph);
 			vTaskDelay(pdMS_TO_TICKS(1000));
 		}													 //连接WiFi
 		Serial.println("WiFi Connected!");
@@ -108,16 +112,17 @@ void resetter(void *param) {
 
 /************检测指令并依此配置WiFi*************/
 void dataRead(const String &data) {
-	if(data == "quit" && mode != EMPTYMODE) {
+	static std::unique_ptr<String> pSSID;
+	if(data == "quit" && mode != DEFAULTMODE) {
 		text.print("Please Enter Directive");
-		mode = EMPTYMODE;
+		mode = DEFAULTMODE;
 	}
-	if(data == "clear config" && mode == EMPTYMODE) {
+	if(data == "clear config" && mode == DEFAULTMODE) {
 		SPIFFS.format();
-		text.print("All Config Reset!", "");
+		text.print("All Config Cleared!", "");
 		return;
 	}
-	if(data == "show config" && mode == EMPTYMODE) {
+	if(data == "show config" && mode == DEFAULTMODE) {
 		if(!SPIFFS.begin()){											 //启用SPIFFS
 			text.print("SPIFFS Failed to Start!");
 		}
@@ -131,26 +136,33 @@ void dataRead(const String &data) {
   		dataFileRead.close();    										 //完成文件读取后关闭文件
 		return;
 	}
-	if(data == "scan wifi" && mode == EMPTYMODE) {	
-		WiFi.mode(WIFI_STA);
-		xSemaphoreTakeFromISR(wifiSemaph, NULL);		 				 //获取信号量
+	if(data == "scan wifi" && mode == DEFAULTMODE) {	
+		xSemaphoreTake(wifiSemaph, pdMS_TO_TICKS(5000));	 			 //获取信号量
 		int wifiNum = WiFi.scanNetworks();								 //扫描WiFI
-		xSemaphoreGiveFromISR(wifiSemaph, NULL);						 //释放信号量
+		xSemaphoreGive(wifiSemaph);						 				 //释放信号量
+
+		StaticJsonDocument<128> SSIDListDoc;
 		Blinker.print("Find " + (String)wifiNum + " Network(s)");		
 		for(int i = 0; i < wifiNum; ++i) {
 			Blinker.print((String)i + ":  " + WiFi.SSID(i));			 //显示WiFI SSID
 			Blinker.print((WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? "Unencrypted" : "Encrypted"));
+			SSIDListDoc[i] = WiFi.SSID(i);
 		}
+		pSSID.reset(new String);
+		serializeJson(SSIDListDoc, *pSSID);
 		text.print("Please Enter WiFi Number :", "Start from 0");
 		mode = CHOOSE_WIFI;
 		return;
 	}else if(mode == CHOOSE_WIFI) {
+		StaticJsonDocument<128> SSIDListDoc;
+		deserializeJson(SSIDListDoc, *pSSID);
+		
 		if(!SPIFFS.begin()){											 //启用SPIFFS
 			text.print("SPIFFS Failed to Start!");
 		}
   		File dataFileRead = SPIFFS.open(fileName, "r"); 				 //建立File对象用于从SPIFFS中读取文件
 		String wifiJsonRead;
-  		for(int i=0; i<dataFileRead.size(); i++){
+  		for(int i=0; i<dataFileRead.size(); i++) {
 			wifiJsonRead = wifiJsonRead + (char)dataFileRead.read();     //读取文件内容
   		}
   		dataFileRead.close();    										 //完成文件读取后关闭文件
@@ -158,7 +170,14 @@ void dataRead(const String &data) {
 		DynamicJsonDocument doc(256);
 		deserializeJson(doc, wifiJsonRead);								 //解析Json
 		int size = doc["SSID"].size();
-		doc["SSID"][size] = WiFi.SSID(data.toInt());
+		if(data.toInt() < 0 || data.toInt() > SSIDListDoc.size() - 1) {
+			text.print("Invalid Input", "Please Enter Directive");
+			mode = DEFAULTMODE;
+			pSSID.reset();
+			SPIFFS.end();
+			return;
+		}
+		doc["SSID"][size] = SSIDListDoc[data.toInt()];
 
 		String buffer;
 		serializeJson(doc, buffer);
@@ -169,9 +188,10 @@ void dataRead(const String &data) {
 
 		text.print("Setting WiFi :", "Please Enter Password");
 		mode = PASSWORD_SETTING;
+		pSSID.reset();
 		return;
 	}
-	if(data == "add wifi" && mode == EMPTYMODE) {
+	if(data == "add wifi" && mode == DEFAULTMODE) {
 		text.print("Setting WiFi :", "Please Enter SSID");
 		mode = SSID_SETTING;
 		return;
@@ -227,7 +247,7 @@ void dataRead(const String &data) {
 		wifi.addAP(doc["SSID"][size], doc["PASSWORD"][size]);			 //添加AP
 
 		text.print("Setting WiFi :", "Finished!");
-		mode = EMPTYMODE;
+		mode = DEFAULTMODE;
 		return;
 	}
 }
@@ -367,6 +387,8 @@ void setup() {
 	}
 
 	xSemaphoreGive(wifiSemaph);
+
+	WiFi.mode(WIFI_STA);
 
 	Blinker.begin();												 //启动蓝牙	
 	Blinker.attachData(dataRead);									 //绑定中断
