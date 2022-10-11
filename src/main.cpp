@@ -98,15 +98,20 @@ void getNTPTime(void *param) {
 		Serial.println("WiFi Connected!");
 		ntp.begin();
 		ntp.update();	                                     //获取更新的时间
-		RtcDateTime rtcNtp(ntp.getEpochTime() - 946656000);  //时间戳转换成自2000以后的时间
-		rtc.SetDateTime(rtcNtp);
-		timeNow = rtc.GetDateTime();
-		Serial.println("Time Updated!");
 		WiFi.disconnect();				            		 //断开WiFi
 		WiFi.getSleep();						             //WiFi睡眠
 		xSemaphoreGive(wifiSemaph);							 //释放信号量	
-		for(int i = 0; i < 1440; ++i) {						 //休眠一整天
-			vTaskDelay(pdMS_TO_TICKS(60000));  
+
+		RtcDateTime rtcNtp(ntp.getEpochTime() - 946656000);  //时间戳转换成自2000以后的时间
+		if(rtcNtp.Hour() >= timeNow.Hour()) {
+			rtc.SetDateTime(rtcNtp);
+			timeNow = rtc.GetDateTime();
+			Serial.println("Time Updated!");
+			for(int i = 0; i < 1440; ++i) {						 //休眠一整天
+				vTaskDelay(pdMS_TO_TICKS(60000));  
+			}
+		}else {
+			vTaskDelay(pdMS_TO_TICKS(10000)); 
 		}
 	}
 }
