@@ -1,14 +1,34 @@
 #include "Weather.h"
 #include "WiFi.h"
 
-Weather::Weather(uint32_t abcode) : location(abcode) {
+/**
+ * @param uint32_t adcode of your city.
+ */
+Weather::Weather(uint32_t adcode) : location(adcode) {
+}
+
+Weather::Weather() {
+    location = 100000;
 }
 
 /**
  * reset location.
  */
-void Weather::city(uint32_t abcode) {
-    location = abcode;
+void Weather::city(uint32_t adcode) {
+    location = adcode;
+}
+
+/**
+ * Set location.
+ * @param uint32_t adcode of your city.
+ * @return return false if adcode invalid.
+ */
+bool Weather::setCity(uint32_t adcode) {
+    if(adcode >= 100000 && adcode <= 900000) {
+        location = adcode;
+        return true;
+    }
+    return false;
 }
 
 /**

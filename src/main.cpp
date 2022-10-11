@@ -24,8 +24,10 @@
 #define SSID_SETTING 1
 #define PASSWORD_SETTING 2
 #define CHOOSE_WIFI 3
+#define SET_ADCODE 4
 
-static String fileName = "/config/wificonfig.json";
+static String wifiConfig = "/config/wificonfig.json";
+static String cityConfig = "/config/cityconfig.txt";
 
 BlinkerText text("text");
 
@@ -53,10 +55,16 @@ void displayLoop(void *param) {
 
 void getWeather(void *param) {
 	while(true) {
+		int timeout(0);
 		while(xSemaphoreTake(wifiSemaph, portMAX_DELAY) != pdFALSE &&
-			 wifi.run() != WL_CONNECTED) {
+			 wifi.run() != WL_CONNECTED) {					 //获取信号量
 			xSemaphoreGive(wifiSemaph);
-			vTaskDelay(pdMS_TO_TICKS(1000));
+			if(timeout > 10) {								 //超时
+				vTaskDelay(pdMS_TO_TICKS(30 *1000));
+			} else {
+				vTaskDelay(pdMS_TO_TICKS(1000));
+				++timeout;
+			}
 		}
 		if(weather.update()) {
 			Serial.println(weather.temperature());
@@ -76,10 +84,16 @@ void getWeather(void *param) {
 
 void getNTPTime(void *param) {
 	while(true) {
+		int timeout(0);
 		while(xSemaphoreTake(wifiSemaph, portMAX_DELAY) != pdFALSE &&
-			 wifi.run() != WL_CONNECTED) {
+			 wifi.run() != WL_CONNECTED) {					 //获取信号量
 			xSemaphoreGive(wifiSemaph);
-			vTaskDelay(pdMS_TO_TICKS(1000));
+			if(timeout > 10) {								 //超时
+				vTaskDelay(pdMS_TO_TICKS(30 * 1000));
+			} else {
+				vTaskDelay(pdMS_TO_TICKS(1000));
+				++timeout;
+			}
 		}													 //连接WiFi
 		Serial.println("WiFi Connected!");
 		ntp.begin();
@@ -116,16 +130,55 @@ void dataRead(const String &data) {
 		text.print("Please Enter Directive");
 		mode = DEFAULTMODE;
 	}
-	if(data == "clear config" && mode == DEFAULTMODE) {
+	if(data == "initialize spiffs" && mode == DEFAULTMODE) {
 		SPIFFS.format();
 		text.print("All Config Cleared!", "");
 		return;
 	}
+	if(data == "clear wifi" && mode == DEFAULTMODE) {
+		if(!SPIFFS.begin()) {
+			text.print("SPIFFS Failed to Start!");
+			return;
+		}
+		
+		File dataFileWrite = SPIFFS.open(wifiConfig, "w");				 //建立File对象用于写入文件
+		dataFileWrite.print("");									 	 //写空
+		dataFileWrite.close();											 //完成写入后关闭文件
+		SPIFFS.end();
+
+		text.print("WiFi Config Cleared!", "");
+		return;
+	}
+	if(data == "set city") {
+		text.print("Please Enter adcode of your city");
+		mode = SET_ADCODE;
+	}else if(mode == SET_ADCODE) {
+		if(weather.setCity(data.toInt())) {
+			if(!SPIFFS.begin()) {
+				text.print("SPIFFS Failed to Start!");
+				return;
+			}
+
+			File abcodeWrite = SPIFFS.open(cityConfig, "w");				 //建立File对象用于写入文件
+			abcodeWrite.print(data);									     //文件反写回SPIFFS
+			abcodeWrite.close();											 //完成写入后关闭文件
+			SPIFFS.end();
+
+			text.print("City Set!", "Please Reboot to update weather.");
+			mode = DEFAULTMODE;
+			return;
+		}else {
+			text.print("Invalid Input");
+			mode = DEFAULTMODE;
+			return;
+		}
+	}
 	if(data == "show config" && mode == DEFAULTMODE) {
 		if(!SPIFFS.begin()){											 //启用SPIFFS
 			text.print("SPIFFS Failed to Start!");
+			return;
 		}
-  		File dataFileRead = SPIFFS.open(fileName, "r"); 				 //建立File对象用于从SPIFFS中读取文件
+  		File dataFileRead = SPIFFS.open(wifiConfig, "r"); 				 //建立File对象用于从SPIFFS中读取文件
 		String wifiJsonRead;
   		for(int i=0; i<dataFileRead.size(); i++){
 			wifiJsonRead = wifiJsonRead + (char)dataFileRead.read();     //读取文件内容
@@ -133,6 +186,16 @@ void dataRead(const String &data) {
 		Serial.println(wifiJsonRead);
 		Blinker.print(wifiJsonRead);
   		dataFileRead.close();    										 //完成文件读取后关闭文件
+
+		File adcodeRead = SPIFFS.open(cityConfig, "r");					 //读adcode文件
+		String adcode;
+		for (int i = 0; i < adcodeRead.size(); i++) {
+			adcode = adcode + (char)adcodeRead.read();
+		}
+		Serial.println(adcode);
+		Blinker.print(adcode);
+		adcodeRead.close(); 										     //完成文件读取后关闭文件
+
 		return;
 	}
 	if(data == "scan wifi" && mode == DEFAULTMODE) {	
@@ -158,8 +221,9 @@ void dataRead(const String &data) {
 		
 		if(!SPIFFS.begin()){											 //启用SPIFFS
 			text.print("SPIFFS Failed to Start!");
+			return;
 		}
-  		File dataFileRead = SPIFFS.open(fileName, "r"); 				 //建立File对象用于从SPIFFS中读取文件
+  		File dataFileRead = SPIFFS.open(wifiConfig, "r"); 				 //建立File对象用于从SPIFFS中读取文件
 		String wifiJsonRead;
   		for(int i=0; i<dataFileRead.size(); i++) {
 			wifiJsonRead = wifiJsonRead + (char)dataFileRead.read();     //读取文件内容
@@ -180,7 +244,7 @@ void dataRead(const String &data) {
 
 		String buffer;
 		serializeJson(doc, buffer);
-		File dataFileWrite = SPIFFS.open(fileName, "w");				 //建立File对象用于写入文件
+		File dataFileWrite = SPIFFS.open(wifiConfig, "w");				 //建立File对象用于写入文件
 		dataFileWrite.print(buffer);									 //文件反写回SPIFFS
 		dataFileWrite.close();											 //完成写入后关闭文件
 		SPIFFS.end();
@@ -197,8 +261,9 @@ void dataRead(const String &data) {
 	}else if(mode == SSID_SETTING) {
 		if(!SPIFFS.begin()){											 //启用SPIFFS
 			text.print("SPIFFS Failed to Start!");
+			return;
 		}
-  		File dataFileRead = SPIFFS.open(fileName, "r"); 				 //建立File对象用于从SPIFFS中读取文件
+  		File dataFileRead = SPIFFS.open(wifiConfig, "r"); 				 //建立File对象用于从SPIFFS中读取文件
 		String wifiJsonRead;
   		for(int i=0; i<dataFileRead.size(); i++){
 			wifiJsonRead = wifiJsonRead + (char)dataFileRead.read();     //读取文件内容
@@ -212,7 +277,7 @@ void dataRead(const String &data) {
 
 		String buffer;
 		serializeJson(doc, buffer);
-		File dataFileWrite = SPIFFS.open(fileName, "w");				 //建立File对象用于写入文件
+		File dataFileWrite = SPIFFS.open(wifiConfig, "w");				 //建立File对象用于写入文件
 		dataFileWrite.print(buffer);									 //文件反写回SPIFFS
 		dataFileWrite.close();											 //完成写入后关闭文件
 		SPIFFS.end();
@@ -223,8 +288,9 @@ void dataRead(const String &data) {
 	}else if(mode == PASSWORD_SETTING) {
 		if(!SPIFFS.begin()){											 //启用SPIFFS
 			text.print("SPIFFS Failed to Start!");
+			return;
 		}
-  		File dataFileRead = SPIFFS.open(fileName, "r"); 				 //建立File对象用于从SPIFFS中读取文件
+  		File dataFileRead = SPIFFS.open(wifiConfig, "r"); 				 //建立File对象用于从SPIFFS中读取文件
 		String wifiJsonRead;
   		for(int i=0; i<dataFileRead.size(); i++){
 			wifiJsonRead = wifiJsonRead + (char)dataFileRead.read();     //读取文件内容
@@ -238,7 +304,7 @@ void dataRead(const String &data) {
 
 		String buffer;
 		serializeJson(doc, buffer);
-		File dataFileWrite = SPIFFS.open(fileName, "w");				 //建立File对象用于写入文件
+		File dataFileWrite = SPIFFS.open(wifiConfig, "w");				 //建立File对象用于写入文件
 		dataFileWrite.print(buffer);									 //文件反写回SPIFFS
 		dataFileWrite.close();											 //完成写入后关闭文件
 		SPIFFS.end();
@@ -370,7 +436,16 @@ void setup() {
 	}else {
 		Serial.println("SPIFFS Failed to Start!");
 	}
-  	File dataFileRead = SPIFFS.open(fileName, "r"); 				 //建立File对象用于从SPIFFS中读取文件
+
+	File adcodeRead = SPIFFS.open(cityConfig, "r");					 //读adcode文件
+	String adcode;
+	for (int i = 0; i < adcodeRead.size(); i++) {
+		adcode = adcode + (char)adcodeRead.read();
+	}
+	weather.setCity(adcode.toInt());										 //写入adcode
+	adcodeRead.close();
+	
+  	File dataFileRead = SPIFFS.open(wifiConfig, "r"); 				 //建立File对象用于从SPIFFS中读取文件
 	String wifiJsonRead;
   	for(int i=0; i<dataFileRead.size(); i++){
 		wifiJsonRead = wifiJsonRead + (char)dataFileRead.read();     //读取文件内容

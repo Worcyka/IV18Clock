@@ -4,9 +4,11 @@
 
 class Weather {
 public:
-    Weather(uint32_t abcode);
+    Weather(uint32_t adcode);
+    Weather();
 
-    void city(uint32_t abcode);
+    void city(uint32_t adcode);
+    bool setCity(uint32_t adcode);
     bool update();
     String weather();
     int8_t temperature();

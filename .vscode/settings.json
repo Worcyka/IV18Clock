@@ -3,7 +3,8 @@
         "*.mk": "makefile",
         "map": "cpp",
         "*.tcc": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "fstream": "cpp"
     },
     "C_Cpp.errorSquiggles": "Disabled"
 }
