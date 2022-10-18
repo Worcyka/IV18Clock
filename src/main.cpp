@@ -1,5 +1,3 @@
-#TODO NTP需要换源
-
 #include <Arduino.h>
 #include "ThreeWire.h"
 #include "RtcDS1302.h"
@@ -16,7 +14,9 @@
 #include "Weather.h"
 #include "memory.h"
 #include "SPIFFS.h"
+#include "SHT2x.h"
 #include "IV18.h"
+#include "Wire.h"
 
 #define MAXPAGE 6		//!最多允许多少页，请务必正确配置!
 #define TRIGVALUE 20	//触摸感应开关的触发阈值
@@ -34,6 +34,7 @@ static String cityConfig = "/config/cityconfig.txt";
 BlinkerText text("text");
 
 IV18 iv18;
+SHT2x sht20;
 ThreeWire i2cWire(19, 21, 15);
 RtcDS1302<ThreeWire> rtc(i2cWire);
 Weather weather(442000);
@@ -467,6 +468,8 @@ void setup() {
 
 	WiFi.mode(WIFI_STA);
 
+	sht20.begin(22, 23);
+
 	Blinker.begin();												 //启动蓝牙	
 	Blinker.attachData(dataRead);									 //绑定中断
 	xTaskCreate(displayLoop, "dispLoop", 1024 * 1, NULL, 32, NULL);	 //显示进程
@@ -474,7 +477,10 @@ void setup() {
 	xTaskCreate(getWeather , "Weather ", 1024 * 4, NULL, 31, NULL);	 //在线同步天气进程
 }
 
-void loop() {                       
+void loop() {
+	sht20.read();
+	Serial.println(sht20.getTemperature());
+	Serial.println(sht20.getHumidity());                       
 	if(Blinker.connected()) {
 		Blinker.run();												 //事件处理
 		vTaskDelay(pdMS_TO_TICKS( 50));
