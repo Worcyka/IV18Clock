@@ -477,10 +477,7 @@ void setup() {
 	xTaskCreate(getWeather , "Weather ", 1024 * 4, NULL, 31, NULL);	 //在线同步天气进程
 }
 
-void loop() {
-	sht20.read();
-	Serial.println(sht20.getTemperature());
-	Serial.println(sht20.getHumidity());                       
+void loop() {           
 	if(Blinker.connected()) {
 		Blinker.run();												 //事件处理
 		vTaskDelay(pdMS_TO_TICKS( 50));
