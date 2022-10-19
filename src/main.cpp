@@ -1,3 +1,12 @@
+/*
+*TODO: 
+*Add IP locate when adcode not set.
+*Luminance regulate function.
+*
+*FIXME: 
+*Remaining weather conditions need to be allocate.
+*/
+
 #include <Arduino.h>
 #include "ThreeWire.h"
 #include "RtcDS1302.h"
@@ -112,6 +121,13 @@ void getNTPTime(void *param) {
 		for(int i = 0; i < 1440; ++i) {						 //休眠一整天
 			vTaskDelay(pdMS_TO_TICKS(60000));  
 		}
+	}
+}
+
+void getTempHumi(void *param) {
+	while(true) {
+		sht20.read();
+		vTaskDelay(pdMS_TO_TICKS(10000));  
 	}
 }
 
@@ -362,22 +378,22 @@ void dispManage() {
 			iv18.setNowDisplaying(formatTime(timeNow));			//显示当前时间
 			break;
 		case 1:
-			if(weather.temperature() < 10 && weather.temperature() >= 0) {
-				iv18.setNowDisplaying(String("TEPR   ") + weather.temperature());	//1位数	
-			}else if(weather.temperature() < -10) {
-				iv18.setNowDisplaying(String("TEPR "  ) + weather.temperature());	//带符号，占仨位
+			if(sht20.getTemperature().length() == 2) {
+				iv18.setNowDisplaying(String("TEP   ") + sht20.getTemperature(), 0x40);	//两位数	
+			}else if(sht20.getTemperature().length() == 3) {
+				iv18.setNowDisplaying(String("TEP  " ) + sht20.getTemperature(), 0x40);	//三位
 			}else {
-				iv18.setNowDisplaying(String("TEPR  " ) + weather.temperature());	//两位(正常情况下？)
+				iv18.setNowDisplaying(String("TEP "  ) + sht20.getTemperature(), 0x40);	//四位(正常情况下？)
 			}
 			break;
 		case 2:
-			iv18.setNowDisplaying(String("RH    ") + weather.humidity());			//应该不太可能出现1位或者3位吧...
+			iv18.setNowDisplaying(String("RH   ") + sht20.getHumidity(), 0x40);			//应该不太可能出现1位或者3位吧...
 			break;
 		case 3:
-			iv18.setNowDisplaying(weather.weather());								//直接显示气象
+			iv18.setNowDisplaying(weather.weather());			//直接显示气象
 			break;
 		case 4:
-			if(WiFi.status() != WL_CONNECTED) {										//查询WiFi状态
+			if(WiFi.status() != WL_CONNECTED) {					//查询WiFi状态
 				iv18.setNowDisplaying("NET  OFF");
 			}else {
 				iv18.setNowDisplaying("NET   ON");
@@ -475,6 +491,7 @@ void setup() {
 	xTaskCreate(displayLoop, "dispLoop", 1024 * 1, NULL, 32, NULL);	 //显示进程
 	xTaskCreate(getNTPTime , "Regulate", 1024 * 4, NULL, 31, NULL);	 //在线同步时间进程
 	xTaskCreate(getWeather , "Weather ", 1024 * 4, NULL, 31, NULL);	 //在线同步天气进程
+	xTaskCreate(getTempHumi, "HumiTemp", 1024 * 2, NULL, 31, NULL);	 //本地获取温湿度
 }
 
 void loop() {           

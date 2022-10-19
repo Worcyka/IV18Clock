@@ -1,6 +1,8 @@
 #include "IV18.h"
 #include "SPI.h"
 
+#define GET_BIT(v,n) ((v) & ((uint8_t)1 << (n)))    //获取v的第n位
+
 IV18::IV18() {
     queryMap = {
         {"0", 0xFC},
@@ -61,6 +63,9 @@ void IV18::loopStart() {
                 uint32_t buffer = 0x00000001;
                 buffer = buffer << (1 + counter + 8);  //左移1+counter,并为段选留8个bit
                 buffer = buffer | queryMap[nowDisplaying.substring(counter, counter+1)];  //使用key值查找value
+                if(GET_BIT(dotPlace, counter)) {
+                    buffer = buffer | 0x01;
+                }
                 buffer = buffer << 15;
                 SPI.transfer32(buffer);
                 vTaskDelay(pdMS_TO_TICKS(1));
@@ -74,6 +79,18 @@ void IV18::loopStart() {
  * @param string What you want the IV18 Display.
  */
 void IV18::setNowDisplaying(String str) {
+    dotPlace = 0;
+    str.toUpperCase();
+	nowDisplaying = str;
+} 
+
+/**
+ * Set display content.With dot(s).
+ * @param string What you want the IV18 Display.
+ * @param dot Where you want to add dot, HEX.
+ */
+void IV18::setNowDisplaying(String str, uint8_t dot) {
+    dotPlace = dot;
     str.toUpperCase();
 	nowDisplaying = str;
 } 

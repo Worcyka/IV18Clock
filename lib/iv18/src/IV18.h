@@ -10,9 +10,11 @@ public:
 
     void loopStart();
     void setNowDisplaying(String str);
+    void setNowDisplaying(String str, uint8_t dot);
 private:
     String nowDisplaying;
     std::map<String, uint8_t> queryMap;
+    uint8_t dotPlace;
 };
 
 #endif
