@@ -107,7 +107,39 @@ bool Weather::update() {
     if(this->cityValid()) {
         return this->get(location);
     }else {
+        if(WiFi.status() != WL_CONNECTED) {
+            return 0;
+        }   
 
+        const char* host = "restapi.amap.com";
+        String reqRes = String("/v3/ip?key=")
+                      + "416a2e13b2ff847b64c6b1b9ed83f590";          //私钥
+
+        WiFiClient client;
+        String httpRequest = String("GET ") + reqRes + " HTTP/1.1\r\n" 
+                           + "Host: " + host + "\r\n"
+                           + "Connection: close\r\n\r\n";
+
+        if (client.connect(host, 80)) {
+            client.print(httpRequest);
+            Serial.println("Sending request: ");
+            Serial.println(httpRequest);  
+            // 获取并显示服务器响应状态行 
+            String status_response = client.readStringUntil('\n');
+            Serial.print("status_response: ");
+            Serial.println(status_response);
+            if(client.find("\r\n\r\n")) {
+                StaticJsonDocument<512> doc;
+                DeserializationError error = deserializeJson(doc, client);
+
+                if (error) {
+                    Serial.print("deserializeJson() failed: ");
+                    Serial.println(error.c_str());
+                    return 0;
+                }
+                return this->get(doc["adcode"]); 
+            }
+        }         
     }
 }
 

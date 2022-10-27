@@ -3,3 +3,7 @@ GET restapi.amap.com/v3/weather/weatherInfo?key=416a2e13b2ff847b64c6b1b9ed83f590
 ###
 
 GET restapi.amap.com/v3/weather/weatherInfo?key=416a2e13b2ff847b64c6b1b9ed83f590&city=442000&extensions=all
+
+###
+
+GET restapi.amap.com/v3/ip?key=416a2e13b2ff847b64c6b1b9ed83f590

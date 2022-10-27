@@ -1,6 +1,5 @@
 /*
 *TODO: 
-*Add IP locate when adcode not set.
 *Luminance regulate function.
 *
 *FIXME: 
