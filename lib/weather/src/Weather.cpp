@@ -32,11 +32,21 @@ bool Weather::setCity(uint32_t adcode) {
 }
 
 /**
+ * @return return false if adcode invalid.
+ */
+bool Weather::cityValid() {
+    if(location >= 100000 && location<= 900000) {
+        return true;
+    }
+    return false;
+}
+
+/**
  * Get Weather Now.
  * Make sure MCU is connected to WiFi before use this function.
  * @return Return true if updated successfully.
  */
-bool Weather::update() {
+bool Weather::get(uint32_t adcode) {
     if(WiFi.status() != WL_CONNECTED) {
         return 0;
     }
@@ -44,7 +54,7 @@ bool Weather::update() {
     const char* host = "restapi.amap.com";
     String reqRes = String("/v3/weather/weatherInfo?key=")
                   + "416a2e13b2ff847b64c6b1b9ed83f590"          //私钥
-                  + "&city=" + location                         //城市adcode
+                  + "&city=" + adcode                           //城市adcode
                   + "&extensions" + "base";
 
     WiFiClient client;
@@ -86,6 +96,19 @@ bool Weather::update() {
     }
     client.stop();
     return 1;
+}
+
+/**
+ * Get Weather Now.
+ * Make sure MCU is connected to WiFi before use this function.
+ * @return Return true if updated successfully.
+ */
+bool Weather::update() {
+    if(this->cityValid()) {
+        return this->get(location);
+    }else {
+
+    }
 }
 
 /**

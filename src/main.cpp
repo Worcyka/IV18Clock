@@ -27,7 +27,7 @@
 #include "IV18.h"
 #include "Wire.h"
 
-#define MAXPAGE 6		//!最多允许多少页，请务必正确配置!
+#define MAXPAGE 4		//!最多允许多少页，请务必正确配置!
 #define TRIGVALUE 20	//触摸感应开关的触发阈值
 #define BLINKER_BLE		//使用BLINKER的蓝牙模式
 #define BLINKER_PRINT Serial
@@ -462,7 +462,7 @@ void setup() {
 	for (int i = 0; i < adcodeRead.size(); i++) {
 		adcode = adcode + (char)adcodeRead.read();
 	}
-	weather.setCity(adcode.toInt());										 //写入adcode
+	weather.setCity(adcode.toInt());								 //写入adcode
 	adcodeRead.close();
 	
   	File dataFileRead = SPIFFS.open(wifiConfig, "r"); 				 //建立File对象用于从SPIFFS中读取文件
